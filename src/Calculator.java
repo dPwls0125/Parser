@@ -83,6 +83,8 @@ public class Calculator {
                     return Relop.RPAREN;
                 else if (ch == '\n')
                     return Relop.NLINE;
+                else
+                    error("getToken error");
             } catch (IOException e) {
                 System.err.println(e);
             }
@@ -90,9 +92,10 @@ public class Calculator {
     }
 
     void match(Relop c) {
-//        if (token == c)
-//            token = getToken();
-        if(token != c) error("Match error");
+        if (token == c)
+            token = getToken();
+        else
+            error("Match error");
     }
 
     int number( )  {
@@ -112,13 +115,11 @@ public class Calculator {
     int expr() { // TURE OR FALSE를 연산하여 TRUE OR FALSE 반환
         if (token == Relop.NOT) {
             match(Relop.NOT);
-            token = null;
             return Math.abs(expr()-1);
         }
         int result = bexp();
         System.out.printf("[expr] result1: %d\n", result);
         while (true) {
-            token = getToken();
             if (token == Relop.AND){ // And 연산자가 나오면
                 match(Relop.AND);
                 if(result == TRUE && bexp() == TRUE) result = TRUE;
@@ -169,11 +170,9 @@ public class Calculator {
             if (token == Relop.PLUS) {
                 match(Relop.PLUS);
                 result += term();
-                token = getToken();
             } else if(token == Relop.MINUS){
                 match(Relop.MINUS);
                 result -= term();
-                token = getToken();
             } else {
                 break;
             }
@@ -186,7 +185,6 @@ public class Calculator {
         int result = factor();
         System.out.printf("[term] result1: %d\n", result);
         while (true) {
-            token = getToken();
             if(token == Relop.MULTI) {
                 match(Relop.MULTI);
                 result *= factor();
@@ -202,7 +200,6 @@ public class Calculator {
     }
 
     int factor() {
-        token = getToken();
         if (token == Relop.LPAREN) {
             match(Relop.LPAREN);
             int result = aexp();
