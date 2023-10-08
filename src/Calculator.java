@@ -37,6 +37,11 @@ public class Calculator {
                     if (ch2 == '=')
                         return Relop.EQUAL;
                     else {
+                        /*
+                        여기서 unread를 추가해주어햐 함.
+                        unread하지 않으면 후에 getToken함수를 시행할 때, '='다음의 값이 하나가 무시되는 상황이 발생함. 왜냐면 ch2에 담긴
+                        값이 버퍼에서 사라져 다시 읽히지 않기 때문.
+                        */
                         input.unread(ch2);
                         error();
                     }
@@ -63,7 +68,12 @@ public class Calculator {
                     ch2 = input.read();
                     if (ch2 == '=')
                         return Relop.NOTEQ;
-                    else // 여기서 unread를 안하는게 맞음
+                    else
+                        /*
+                        여기서 unread를 추가해주어햐 함.
+                        이유(예제 1을 예시로 들음) : ch = !(op) , ch2 = 3(정수)인 상태에서 token은 NOT을 반환 그렇다면 후에 getToken()을 통해 다시 ch를 읽어들일 때 어떤 값이 읽힐까?
+                        버퍼에는 3이 존재하지 않을거임. 이미 stream 상태에서 읽힌 상태니까. 그러면 결국 3을 읽지 못하고 >를 읽게 됨. 따라서 3이 무시되는 상황이 발생함.
+                        */
                         input.unread(ch2);
                     return Relop.NOT;
                 }
