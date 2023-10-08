@@ -1,18 +1,18 @@
 import java.io.IOException;
-
 import java.io.PushbackInputStream;
 enum Relop {
     LPAREN, RPAREN, PLUS, MINUS, MULTI, DIVIDE,
     AND, OR, NUMBER, NOT,
     EQUAL, LT, LTEQ, GT, GTEQ, NOTEQ, NLINE
 };
-/*  Meaning of enum symbols
-	LPAREN("("), RPAREN(")"), PLUS("+"), MINUS("-"), MULTI("*"),	 DIVIDE("/"),
-	AND("&"), OR("|"), NUMBER(""), NOT("!"),
-	EQUAL("=="), LT("<"), LTEQ("<="), GT(">"), GTEQ(">="), NOTEQ("!="), NLINE("\n");
+/*
+    Meaning of enum symbols
+	LPAREN("("), RPAREN(")"), PLUS("+"), MINUS("-"), MULTI("*"),DIVIDE("/"),
+	AND("&"), OR("|"), NUMBER(""), NOT("!"), -> 논리 연산자
+	EQUAL("=="), LT("<"), LTEQ("<="), GT(">"), GTEQ(">="), NOTEQ("!="), NLINE("\n"); -> 비교 연산자
 */
 public class Calculator {
-    Relop token; int value; int ch; int ch2;
+    Relop token; int value; int ch; int ch2; //토큰 관련 함수는 함수를 타고 들어가면서 모든 함수가 공유하기 때문에 반드시 전역변수여야 함.
     boolean bool;
     private PushbackInputStream input;
     final int TRUE = 1;
@@ -28,23 +28,15 @@ public class Calculator {
                 ch = input.read();
                 if (ch == ' ' || ch == '\t' || ch == '\r') ;
                 else if (Character.isDigit(ch)) {
-                    value = number( ); // 여기서 ch와 그 이후의 숫자들을 읽어서 value에 저장함.
-                    input.unread(ch);
-                    return Relop.NUMBER;
+                    value = number( ); // 변수 value에 숫자로 변환되어 저장
+                    input.unread(ch); //하나 읽기 전으로 되돌림.
+                    return Relop.NUMBER; //열거형 NUMBER 반
                 }
                 else if (ch == '='){
                     ch2 = input.read();
                     if (ch2 == '=')
                         return Relop.EQUAL;
-                    else {
-                        /*
-                        여기서 unread를 추가해주어햐 함.
-                        unread하지 않으면 후에 getToken함수를 시행할 때, '='다음의 값이 하나가 무시되는 상황이 발생함. 왜냐면 ch2에 담긴
-                        값이 버퍼에서 사라져 다시 읽히지 않기 때문.
-                        */
-                        input.unread(ch2);
-                        error();
-                    }
+                    else error("EQUAL error");
                 }
                 else if (ch == '>'){
                     ch2 = input.read();
@@ -68,14 +60,10 @@ public class Calculator {
                     ch2 = input.read();
                     if (ch2 == '=')
                         return Relop.NOTEQ;
-                    else
-                        /*
-                        여기서 unread를 추가해주어햐 함.
-                        이유(예제 1을 예시로 들음) : ch = !(op) , ch2 = 3(정수)인 상태에서 token은 NOT을 반환 그렇다면 후에 getToken()을 통해 다시 ch를 읽어들일 때 어떤 값이 읽힐까?
-                        버퍼에는 3이 존재하지 않을거임. 이미 stream 상태에서 읽힌 상태니까. 그러면 결국 3을 읽지 못하고 >를 읽게 됨. 따라서 3이 무시되는 상황이 발생함.
-                        */
-                        input.unread(ch2);
-                    return Relop.NOT;
+                    else {
+                        input.unread(ch2);  // ! 뒤에 =가 아닌 다른 문자가 나온 경우
+                        return Relop.NOT;
+                    }
                 }
                 else if (ch == '&')
                     return Relop.AND;
@@ -95,16 +83,19 @@ public class Calculator {
                     return Relop.RPAREN;
                 else if (ch == '\n')
                     return Relop.NLINE;
+                else
+                    error("getToken error");
             } catch (IOException e) {
                 System.err.println(e);
             }
         }
     }
 
-    void match(Relop c) { // 토큰이 일치하면 다음 토큰을 읽어들이고, 일치하지 않으면 에러를 출력하고 종료한다.
+    void match(Relop c) {
         if (token == c)
             token = getToken();
-        else error();
+        else
+            error("Match error");
     }
 
     int number( )  {
@@ -121,102 +112,113 @@ public class Calculator {
         }
         return result;
     }
-
-    void error( ) {
-        System.out.printf("parse error : %d\n", ch);
-        System.exit(1);
-    }
-
-    int expr( ) {
-        /* <expr> → <bexp> {& <bexp> | ‘|’ <bexp>} | !<expr> | true | false */
+    int expr() { // TURE OR FALSE를 연산하여 TRUE OR FALSE 반환
         if (token == Relop.NOT) {
             match(Relop.NOT);
-            /*token = null;*/
-            return Math.abs(expr() - 1);
+            return Math.abs(expr()-1);
         }
         int result = bexp();
-        if (token == Relop.NUMBER) { // 1번 예제에서 해당 token = 3이 맞음
-            match(Relop.NUMBER); // 다음 토큰을 읽음
-            while (token == Relop.AND || token == Relop.OR) {
-                if (token == Relop.AND) {
-                    match(Relop.AND);
-                    result = result & bexp();
-                } else if (token == Relop.OR) {
-                    match(Relop.OR);
-                    result = result | bexp();
-                }
+        System.out.printf("[expr] result1: %d\n", result);
+        while (true) {
+            if (token == Relop.AND){ // And 연산자가 나오면
+                match(Relop.AND);
+                if(result == TRUE && bexp() == TRUE) result = TRUE;
+                else result = FALSE;
+            } else if (token == Relop.OR){ // OR 연산자가 나오면
+                match(Relop.OR);
+                if (result == TRUE || bexp() == TRUE) result = TRUE;
+                else result = FALSE;
+            } else { // AND, OR 연산자가 아닌 경우
+                break;
             }
         }
+        System.out.printf("[expr] result2: %d,\n", result);
         return result;
     }
-
-    int bexp(){ //<bexp> → <aexp> [(== | != | < | > | <= | >=) <aexp>]
+    int bexp() { // 연산의 TRUE or FALSE를 반환
         int result = aexp();
+        System.out.printf("[bexp] result1: %d\n", result);
+        // [ ] 의 표현은 0번 or 1번의 개념이므로 조건문을 사용함.
         if (token == Relop.EQUAL) {
             match(Relop.EQUAL);
-            result = (result == aexp()) ? TRUE : FALSE;
+            result = (result == aexp()) ? TRUE : FALSE;// 소괄호 안의 비교 연산이 참인경우 true, 거짓인 경우 false 반환.
         } else if (token == Relop.NOTEQ) {
             match(Relop.NOTEQ);
             result = (result != aexp()) ? TRUE : FALSE;
         } else if (token == Relop.LT) {
             match(Relop.LT);
             result = (result < aexp()) ? TRUE : FALSE;
-        } else if (token == Relop.LTEQ) {
-            match(Relop.LTEQ);
-            result = (result <= aexp()) ? TRUE : FALSE;
         } else if (token == Relop.GT) {
             match(Relop.GT);
             result = (result > aexp()) ? TRUE : FALSE;
+        } else if (token == Relop.LTEQ) {
+            match(Relop.LTEQ);
+            result = (result <= aexp()) ? TRUE : FALSE;
         } else if (token == Relop.GTEQ) {
             match(Relop.GTEQ);
             result = (result >= aexp()) ? TRUE : FALSE;
         }
+        System.out.printf("[bexp] result2: %d\n", result);
         return result;
     }
 
+    // 수 연산 +,-
     int aexp() {
-        /* <aexp> → <term> {+ <term> | - <term>} */
         int result = term();
-        while (token == Relop.PLUS || token == Relop.MINUS) {
+        System.out.printf("[aexp] result1: %d\n", result);
+        while (true) {
             if (token == Relop.PLUS) {
                 match(Relop.PLUS);
-                result = result + term();
-            } else if (token == Relop.MINUS) {
+                result += term();
+            } else if(token == Relop.MINUS){
                 match(Relop.MINUS);
-                result = result - term();
+                result -= term();
+            } else {
+                break;
             }
         }
+        System.out.printf("[aexp] result2: %d\n", result);
         return result;
     }
 
     int term() {
-        /* <term> → <factor> {* <factor> | / <factor>} */
         int result = factor();
-        while (token == Relop.MULTI || token == Relop.DIVIDE) {
-            if (token == Relop.MULTI) {
+        System.out.printf("[term] result1: %d\n", result);
+        while (true) {
+            if(token == Relop.MULTI) {
                 match(Relop.MULTI);
-                result = result * factor();
-            } else if (token == Relop.DIVIDE) {
+                result *= factor();
+            } else if(token == Relop.DIVIDE){
                 match(Relop.DIVIDE);
-                result = result / factor();
+                result /= factor();
+            } else {
+                break;
             }
         }
+        System.out.printf("[term] result2: %d\n", result);
         return result;
     }
 
     int factor() {
-        /* <factor> → <number> | (<expr>) */
-        int result = 0;
-        if (token == Relop.NUMBER) {
-            result = value;
-            match(Relop.NUMBER);
-        } else if (token == Relop.LPAREN) {
+        if (token == Relop.LPAREN) {
             match(Relop.LPAREN);
-            result = expr();
+            int result = aexp();
+            System.out.printf("[factor] result: %d\n", result);
             match(Relop.RPAREN);
+            return result;
+        } else {
+            match(Relop.NUMBER);
+            return value;
         }
-        return result;
     }
+    void error(String msg) {
+        System.out.println(msg);
+        System.out.printf("parse error : %d, %c\n", ch, ch);
+        System.exit(1);
+    }
+
+
+
     void command( ) {
         /* command -> expr '\n' */
         int result = expr();
@@ -227,7 +229,7 @@ public class Calculator {
                 System.out.println(false);
             else
                 System.out.printf("The result is: %d\n", result);
-        else error();
+        else error("Command error");
     }
 
     void parse( ) {
